@@ -6,14 +6,15 @@ Train an agent on Sonic using PPO2 from OpenAI Baselines.
 
 import tensorflow as tf
 
-from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
+# from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
+from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
 import baselines.ppo2.ppo2 as ppo2
 import baselines.ppo2.policies as policies
 import gym_remote.exceptions as gre
 import env_servers
 import functools
 import argparse
-from sonic_util import make_env
+from sonic_util import make_env, make_remote_env
 import pandas as pd
 from time import sleep
 from baselines import logger
@@ -27,7 +28,7 @@ def main(clients_fn):
         # Take more timesteps than we need to be sure that
         # we stop due to an exception.
         ppo2.learn(policy=policies.CnnPolicy,
-                   env=DummyVecEnv(clients_fn),
+                   env=SubprocVecEnv(clients_fn),
                    nsteps=4096,
                    nminibatches=8,
                    lam=0.95,
@@ -41,7 +42,7 @@ def main(clients_fn):
                    save_interval=10)
 
 
-def run_training():
+def run_dummy():
     def _parse_args():
         parser = argparse.ArgumentParser(description="Run commands")
         parser.add_argument('--socket_dir', type=str, default='/tmp/retro', help="Base directory for sockers.")
@@ -54,7 +55,7 @@ def run_training():
 
     env_process, game_dirs = env_servers.start_servers(game_states, args.socket_dir, args.steps)
 
-    clients_fn = [functools.partial(make_env, socket_dir=d) for d in game_dirs]
+    clients_fn = [functools.partial(make_remote_env, socket_dir=d) for d in game_dirs]
 
     sleep(2)
     logger.configure('logs')
@@ -64,8 +65,24 @@ def run_training():
         p.join()
 
 
+def run_subprocess():
+    def _parse_args():
+        parser = argparse.ArgumentParser(description="Run commands")
+        parser.add_argument('--csv_file', type=str, default='train_small.csv', help="Csv file with train games.")
+        return parser.parse_args()
+
+    args = _parse_args()
+    game_states = pd.read_csv(args.csv_file).values
+
+    clients_fn = [functools.partial(make_env, game=g, state=s) for g, s in game_states]
+
+    sleep(2)
+    logger.configure('logs')
+    main(clients_fn)
+
+
 if __name__ == '__main__':
     try:
-        run_training()
+        run_subprocess()
     except gre.GymRemoteError as exc:
         print('exception', exc)

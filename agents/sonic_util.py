@@ -7,8 +7,11 @@ import numpy as np
 
 from baselines.common.atari_wrappers import WarpFrame, FrameStack
 import gym_remote.client as grc
+import retro
+from retro_contest.local import make
 
-def make_env(stack=True, scale_rew=True, socket_dir='/tmp'):
+
+def make_remote_env(stack=True, scale_rew=True, socket_dir='/tmp'):
     """
     Create an environment with some standard wrappers.
     """
@@ -21,6 +24,23 @@ def make_env(stack=True, scale_rew=True, socket_dir='/tmp'):
         env = FrameStack(env, 4)
     env = EpisodeInfo(env)
     return env
+
+
+def make_env(game, state, stack=True, scale_rew=True):
+    """
+    Create an environment with some standard wrappers.
+    """
+    env = make(game, state)
+
+    env = SonicDiscretizer(env)
+    if scale_rew:
+        env = RewardScaler(env)
+    env = WarpFrame(env)
+    if stack:
+        env = FrameStack(env, 4)
+    env = EpisodeInfo(env)
+    return env
+
 
 class SonicDiscretizer(gym.ActionWrapper):
     """

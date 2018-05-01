@@ -16,6 +16,7 @@ import argparse
 from sonic_util import make_env
 import pandas as pd
 from time import sleep
+from baselines import logger
 
 
 def main(clients_fn):
@@ -36,14 +37,15 @@ def main(clients_fn):
                    ent_coef=0.01,
                    lr=lambda _: 2e-4,
                    cliprange=lambda _: 0.1,
-                   total_timesteps=int(1e7))
+                   total_timesteps=int(5e7),
+                   save_interval=10)
 
 
 def run_training():
     def _parse_args():
         parser = argparse.ArgumentParser(description="Run commands")
         parser.add_argument('--socket_dir', type=str, default='/tmp/retro', help="Base directory for sockers.")
-        parser.add_argument('--csv_file', type=str, default='train_large.csv', help="Csv file with train games.")
+        parser.add_argument('--csv_file', type=str, default='train_small.csv', help="Csv file with train games.")
         parser.add_argument('--steps', type=int, default=None, help="Number of timestemps for each environment.")
         return parser.parse_args()
 
@@ -55,6 +57,7 @@ def run_training():
     clients_fn = [functools.partial(make_env, socket_dir=d) for d in game_dirs]
 
     sleep(2)
+    logger.configure('logs')
     main(clients_fn)
 
     for p in env_process:

@@ -8,17 +8,18 @@ import numpy as np
 from baselines.common.atari_wrappers import WarpFrame, FrameStack
 import gym_remote.client as grc
 
-def make_env(stack=True, scale_rew=True):
+def make_env(stack=True, scale_rew=True, socket_dir='/tmp'):
     """
     Create an environment with some standard wrappers.
     """
-    env = grc.RemoteEnv('tmp/sock')
+    env = grc.RemoteEnv(socket_dir)
     env = SonicDiscretizer(env)
     if scale_rew:
         env = RewardScaler(env)
     env = WarpFrame(env)
     if stack:
         env = FrameStack(env, 4)
+    env = EpisodeInfo(env)
     return env
 
 class SonicDiscretizer(gym.ActionWrapper):
@@ -42,6 +43,7 @@ class SonicDiscretizer(gym.ActionWrapper):
     def action(self, a): # pylint: disable=W0221
         return self._actions[a].copy()
 
+
 class RewardScaler(gym.RewardWrapper):
     """
     Bring rewards to a reasonable scale for PPO.
@@ -51,6 +53,7 @@ class RewardScaler(gym.RewardWrapper):
     """
     def reward(self, reward):
         return reward * 0.01
+
 
 class AllowBacktracking(gym.Wrapper):
     """
@@ -74,4 +77,35 @@ class AllowBacktracking(gym.Wrapper):
         self._cur_x += rew
         rew = max(0, self._cur_x - self._max_x)
         self._max_x = max(self._max_x, self._cur_x)
+        return obs, rew, done, info
+
+
+class EpisodeInfo(gym.Wrapper):
+    """
+    Add information about episode end and total final reward
+    """
+    def __init__(self, env):
+        super(EpisodeInfo, self).__init__(env)
+        self._ep_len = 0
+        self._ep_rew_total = 0
+
+    def reset(self, **kwargs): # pylint: disable=E0202
+        self._ep_len = 0
+        self._ep_rew_total = 0
+        return self.env.reset(**kwargs)
+
+    def step(self, action): # pylint: disable=E0202
+        obs, rew, done, info = self.env.step(action)
+        self._ep_len += 1
+        self._ep_rew_total += rew
+
+        if done:
+            if "episode" not in info:
+                info = {"episode": {"l": self._ep_len, "r": self._ep_rew_total}}
+            elif isinstance(info, dict):
+                if "l" not in info["episode"]:
+                    info["episode"]["l"] = self._ep_len
+                if "r" not in info["episode"]:
+                    info["episode"]["r"] = self._ep_rew_total
+
         return obs, rew, done, info

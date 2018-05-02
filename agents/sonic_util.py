@@ -8,7 +8,22 @@ import numpy as np
 from baselines.common.atari_wrappers import WarpFrame, FrameStack
 import gym_remote.client as grc
 import retro
-from retro_contest.local import make
+import retro_contest
+import random
+
+
+def make(game, state, discrete_actions=False, bk2dir=None):
+    use_restricted_actions = retro.ACTIONS_FILTERED
+    if discrete_actions:
+        use_restricted_actions = retro.ACTIONS_DISCRETE
+    try:
+        env = retro.make(game, state, scenario='contest', use_restricted_actions=use_restricted_actions)
+    except Exception:
+        env = retro.make(game, state, use_restricted_actions=use_restricted_actions)
+    if bk2dir:
+        env.auto_record(bk2dir)
+
+    return env
 
 
 def make_remote_env(stack=True, scale_rew=True, socket_dir='/tmp'):
@@ -31,6 +46,29 @@ def make_env(game, state, stack=True, scale_rew=True):
     Create an environment with some standard wrappers.
     """
     env = make(game, state)
+    env = retro_contest.StochasticFrameSkip(env, n=4, stickprob=0.25)
+    env = gym.wrappers.TimeLimit(env, max_episode_steps=4500)
+
+    env = SonicDiscretizer(env)
+    if scale_rew:
+        env = RewardScaler(env)
+    env = WarpFrame(env)
+    if stack:
+        env = FrameStack(env, 4)
+    env = EpisodeInfo(env)
+    return env
+
+
+def make_rand_env(game_states, stack=True, scale_rew=True):
+    """
+    Create an environment with some standard wrappers.
+    """
+    game, state = game_states[0]
+    env = make(game, state)
+
+    env = RandomEnvironmen(env, game_states)
+    env = retro_contest.StochasticFrameSkip(env, n=4, stickprob=0.25)
+    env = gym.wrappers.TimeLimit(env, max_episode_steps=4500)
 
     env = SonicDiscretizer(env)
     if scale_rew:
@@ -129,3 +167,18 @@ class EpisodeInfo(gym.Wrapper):
                     info["episode"]["r"] = self._ep_rew_total
 
         return obs, rew, done, info
+
+
+class RandomEnvironmen(gym.Wrapper):
+    """
+    Add information about episode end and total final reward
+    """
+    def __init__(self, env, game_states):
+        super(RandomEnvironmen, self).__init__(env)
+        self.game_states = game_states
+
+    def reset(self, **kwargs):
+        self.env.close()
+        game, state = random.choice(self.game_states)
+        self.env = make(game, state)
+        return self.env.reset(**kwargs)

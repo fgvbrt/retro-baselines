@@ -14,10 +14,11 @@ import gym_remote.exceptions as gre
 import env_servers
 import functools
 import argparse
-from sonic_util import make_env, make_remote_env
+import sonic_util
 import pandas as pd
 from time import sleep
 from baselines import logger
+from multiprocessing import cpu_count
 
 
 def main(clients_fn):
@@ -55,7 +56,7 @@ def run_dummy():
 
     env_process, game_dirs = env_servers.start_servers(game_states, args.socket_dir, args.steps)
 
-    clients_fn = [functools.partial(make_remote_env, socket_dir=d) for d in game_dirs]
+    clients_fn = [functools.partial(sonic_util.make_remote_env, socket_dir=d) for d in game_dirs]
 
     sleep(2)
     logger.configure('logs')
@@ -68,13 +69,14 @@ def run_dummy():
 def run_subprocess():
     def _parse_args():
         parser = argparse.ArgumentParser(description="Run commands")
-        parser.add_argument('--csv_file', type=str, default='train_small.csv', help="Csv file with train games.")
+        parser.add_argument('--csv_file', type=str, default='train_large.csv', help="Csv file with train games.")
+        parser.add_argument('--num_envs', type=int, default=cpu_count() - 1, help="Number of parallele environments.")
         return parser.parse_args()
 
     args = _parse_args()
-    game_states = pd.read_csv(args.csv_file).values
+    game_states = pd.read_csv(args.csv_file).values.tolist()
 
-    clients_fn = [functools.partial(make_env, game=g, state=s) for g, s in game_states]
+    clients_fn = [functools.partial(sonic_util.make_rand_env, game_states) for _ in range(args.num_envs)]
 
     sleep(2)
     logger.configure('logs')

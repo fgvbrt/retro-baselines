@@ -50,6 +50,7 @@ def make_env(game, state, stack=True, scale_rew=True):
     env = gym.wrappers.TimeLimit(env, max_episode_steps=4500)
 
     env = SonicDiscretizer(env)
+    env = AllowBacktracking(env)
     if scale_rew:
         env = RewardScaler(env)
     env = WarpFrame(env)
@@ -71,6 +72,7 @@ def make_rand_env(game_states, stack=True, scale_rew=True):
     env = gym.wrappers.TimeLimit(env, max_episode_steps=4500)
 
     env = SonicDiscretizer(env)
+    env = AllowBacktracking(env)
     if scale_rew:
         env = RewardScaler(env)
     env = WarpFrame(env)

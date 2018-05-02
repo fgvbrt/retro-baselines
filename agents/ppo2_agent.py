@@ -39,7 +39,7 @@ def main(clients_fn):
                    ent_coef=0.01,
                    lr=lambda _: 2e-4,
                    cliprange=lambda _: 0.1,
-                   total_timesteps=int(5e7),
+                   total_timesteps=int(10e7),
                    save_interval=10)
 
 
@@ -47,7 +47,7 @@ def run_dummy():
     def _parse_args():
         parser = argparse.ArgumentParser(description="Run commands")
         parser.add_argument('--socket_dir', type=str, default='/tmp/retro', help="Base directory for sockers.")
-        parser.add_argument('--csv_file', type=str, default='train_small.csv', help="Csv file with train games.")
+        parser.add_argument('--csv_file', type=str, default='all.csv', help="Csv file with train games.")
         parser.add_argument('--steps', type=int, default=None, help="Number of timestemps for each environment.")
         return parser.parse_args()
 
@@ -69,8 +69,8 @@ def run_dummy():
 def run_subprocess():
     def _parse_args():
         parser = argparse.ArgumentParser(description="Run commands")
-        parser.add_argument('--csv_file', type=str, default='train_large.csv', help="Csv file with train games.")
-        parser.add_argument('--num_envs', type=int, default=cpu_count() - 1, help="Number of parallele environments.")
+        parser.add_argument('--csv_file', type=str, default='all.csv', help="Csv file with train games.")
+        parser.add_argument('--num_envs', type=int, default=int(1.5*cpu_count()) - 1, help="Number of parallele environments.")
         return parser.parse_args()
 
     args = _parse_args()

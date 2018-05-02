@@ -15,10 +15,9 @@ RUN . ~/venv/bin/activate && \
     pip install .
 
 
-ADD roms /roms/
-RUN . ~/venv/bin/activate && find /roms/ -name 'Sonic*' -type d -exec python -m retro.import {} \;
+ADD sonic_util.py ./
+ADD ppo2_agent_subm.py ./
+ADD *.pkl ./
 
-ADD *.py ./
-ADD *.csv ./
 
-CMD ["python", "-u", "/root/compo/ppo2_agent.py"]
+CMD ["python", "-u", "/root/compo/ppo2_agent_subm.py"]
